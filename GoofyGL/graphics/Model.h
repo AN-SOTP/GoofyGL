@@ -167,7 +167,7 @@ private:
 			material->GetTexture(type, i, &str);
 			std::string full_path = directory + '/' + str.C_Str();
 
-			// Check texture cache first
+			//check texture cache
 			auto cached = texture_cache.find(full_path);
 			if (cached != texture_cache.end())
 			{
@@ -176,7 +176,7 @@ private:
 				continue;
 			}
 
-			// If not in cache, load new texture
+			//if not found load new texture
 			Texture texture;
 			texture.id = TextureFromFile(str.C_Str(), directory);
 			texture.type = type_name;
@@ -187,7 +187,7 @@ private:
 			std::cout << "Loading new texture: " << full_path << std::endl;
 		}
 
-		// Handle case of no textures
+		//if no textures
 		if (texture_count == 0)
 		{
 			unsigned int white_texture = CreateWhiteTexture();

@@ -1,10 +1,8 @@
-#version 330 core
+#version 430 core
 struct Material 
 {
     //material vectors
     //vec3 ambient; //defines what color the surface reflects under ambient lighting, usually same as surface color
-    sampler2D diffuse; //defines the color of the surface under diffuse lighting. diffuse color is set to the desired surface color (like ambient lighting). texture based
-    sampler2D specular; //specular sets the color of the specular highlight on the surface (or maybe even reflect a surface-specific color). texture based
 
     vec3 diffuse_color;
     vec3 ambient_color;
@@ -12,6 +10,10 @@ struct Material
 
     float shininess; //shininess impacts scattering/radius of the specular highlight
 };
+
+//samplers outside of material struct now
+uniform sampler2D material_diffuse; //defines the color of the surface under diffuse lighting. diffuse color is set to the desired surface color (like ambient lighting). texture based
+uniform sampler2D material_specular; //specular sets the color of the specular highlight on the surface (or maybe even reflect a surface-specific color). texture based
 
 //a light source has a different intensity for its components. ambient light is usually set to a low intensity so the ambient color isnt too dominant.
 //the diffuse color of a light source is set to the color we want to have, usually a bright white color. specular is usually kept at vec3(1.0) shining a tfull intensity.
@@ -68,17 +70,27 @@ uniform DirectionalLight directional_light;
 uniform PointLight point_lights[NR_POINT_LIGHTS];
 uniform SpotLight spot_light;
 uniform bool wireframe;
+uniform bool visualize_depth;
 
 out vec4 frag_color;
 
 vec3 CalculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 view_dir);
 vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir);
 vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_dir);
+float LinearizeDepth(float depth);
+
+float near = 0.1; 
+float far  = 100.0; 
 
 void main()
 {   
     vec3 norm     = normalize(normal);
     vec3 view_dir = normalize(view_pos - frag_pos);
+
+    // Alpha testing: discard fragments with low alpha
+    vec4 texture_color = texture(material_diffuse, tex_coords);
+    if (texture_color.a < 0.5)
+        discard;
 
     // 1) directional lighting
     vec3 result = CalculateDirectionalLight(directional_light, norm, view_dir);
@@ -93,6 +105,11 @@ void main()
     // If wireframe is on, we force white lines
     if(wireframe)
         frag_color = vec4(1.0);
+    if(visualize_depth)
+    {
+        float depth = LinearizeDepth(gl_FragCoord.z) / far;
+        frag_color = vec4(vec3(depth), 1.0);
+    }
     else
         frag_color = vec4(result, 1.0);
 }
@@ -109,8 +126,8 @@ vec3 CalculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 view_di
     float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
     // 3) Sample textures *and* multiply by color
-    vec3 base_diffuse  = texture(material.diffuse, tex_coords).rgb * material.diffuse_color;
-    vec3 base_specular = texture(material.specular, tex_coords).rgb * material.specular_color;
+    vec3 base_diffuse  = texture(material_diffuse, tex_coords).rgb * material.diffuse_color;
+    vec3 base_specular = texture(material_specular, tex_coords).rgb * material.specular_color;
     
     // For ambient, many engines use the “diffuse texture” as well, 
     // but you could also do:  light.ambient * material.ambient_color
@@ -132,8 +149,8 @@ vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view
     float spec       = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
     // 2) Combine texture + color
-    vec3 base_diffuse  = texture(material.diffuse, tex_coords).rgb * material.diffuse_color;
-    vec3 base_specular = texture(material.specular, tex_coords).rgb * material.specular_color;
+    vec3 base_diffuse  = texture(material_diffuse, tex_coords).rgb * material.diffuse_color;
+    vec3 base_specular = texture(material_specular, tex_coords).rgb * material.specular_color;
 
     // 3) Basic ambient/diffuse/spec
     vec3 ambient  = light.ambient  * base_diffuse;
@@ -145,8 +162,8 @@ vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view
     float attenuation = 1.0 / (light.constant 
                                + light.linear * distance 
                                + light.quadratic * (distance * distance));
-
-    ambient  *= attenuation;
+    
+    //ambient  *= attenuation;
     diffuse  *= attenuation;
     specular *= attenuation;
 
@@ -163,8 +180,8 @@ vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_d
     float spec       = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
     // 2) Combine texture + color
-    vec3 base_diffuse  = texture(material.diffuse, tex_coords).rgb * material.diffuse_color;
-    vec3 base_specular = texture(material.specular, tex_coords).rgb * material.specular_color;
+    vec3 base_diffuse  = texture(material_diffuse, tex_coords).rgb * material.diffuse_color;
+    vec3 base_specular = texture(material_specular, tex_coords).rgb * material.specular_color;
 
     // 3) Basic ambient/diffuse/spec
     vec3 ambient  = light.ambient  * base_diffuse;
@@ -188,4 +205,10 @@ vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_d
     specular *= (attenuation * intensity);
 
     return (ambient + diffuse + specular);
+}
+
+float LinearizeDepth(float depth) 
+{
+    float z = depth * 2.0 - 1.0; // back to NDC 
+    return (2.0 * near * far) / (far + near - z * (far - near));
 }

@@ -8,7 +8,7 @@ GoofyGL::GoofyGL()
 
 	//glfw initialisation and configuration
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -37,8 +37,16 @@ GoofyGL::GoofyGL()
 		//return -1;
 	}
 
+	if (!GL_ARB_bindless_texture)
+	{
+		//might mess around with this soon
+		std::cerr << "Bindless textures not supported on this system. Whoops!" << std::endl;
+	}
+
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_DEPTH_CLAMP);
+
+	glEnable(GL_STENCIL_TEST);
 
 	// tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
 	stbi_set_flip_vertically_on_load(true);
@@ -71,6 +79,7 @@ void GoofyGL::GoofyGLRun()
 	//Model first_model("assets/models/cottage/cottage_obj.obj");
 	//Model first_model("assets/models/car/mustang.obj");
 	Model first_model("assets/models/Sponza-master/sponza.obj");
+	Model second_model("assets/models/backpack/backpack.obj");
 
 	//set up vertex data and buffers and configure vertex attributes
 	//glViewport(0, 0, 800, 600);
@@ -84,7 +93,7 @@ void GoofyGL::GoofyGLRun()
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init("#version 330");
+	ImGui_ImplOpenGL3_Init("#version 430");
 
 	//variables to manipulate in imgui window
 	glm::vec3 point_lights_ambient = glm::vec3(0.05f, 0.05f, 0.05f);
@@ -93,10 +102,9 @@ void GoofyGL::GoofyGLRun()
 	float point_lights_constant = 1.0f;
 	float point_lights_linear = 0.09f;
 	float point_lights_quadratic = 0.032f;
-	bool wireframe_mode = false;
 
 	glm::vec3 point_lights_positions[] = {
-	glm::vec3(0.7f,  0.2f,  2.0f),
+	glm::vec3(-45.f,  109.f,  -3.f),
 	glm::vec3(2.3f, -3.3f, -4.0f),
 	glm::vec3(-4.0f,  2.0f, -12.0f),
 	glm::vec3(0.0f,  0.0f, -3.0f)
@@ -125,7 +133,7 @@ void GoofyGL::GoofyGLRun()
 
 		//rendering
 		glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		//model_loading_shader.Use();
 
@@ -211,13 +219,18 @@ void GoofyGL::GoofyGLRun()
 		lighting_shader.SetMat4("view", view);
 
 		lighting_shader.SetBool("wireframe", wireframe_mode);
+		lighting_shader.SetBool("visualize_depth", visualize_depth);
 
 		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it so it's at the center of the scene
 		//model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// model is a bit too big for the scene, so scale it down
 		model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
 		lighting_shader.SetMat4("model", model);
 		first_model.Draw(lighting_shader);
+		model = glm::translate(model, glm::vec3(-70.0f, 50.0, 0.0f));
+		model = glm::scale(model, glm::vec3(20.0f, 20.0f, 20.0f));
+		lighting_shader.SetMat4("model", model);
+		second_model.Draw(lighting_shader);
 
 		//glBindVertexArray(0); //no need to unbind everytime
 		//check and poll IO events and swap front and back buffer
@@ -251,7 +264,9 @@ void GoofyGL::GoofyGLRun()
 			ImGui::SliderFloat("Point Lights constant", &point_lights_constant, 0.0f, 1.0f);
 			ImGui::SliderFloat("Point Lights linear", &point_lights_linear, 0.0f, 1.0f);
 			ImGui::SliderFloat("Point Lights quadratic", &point_lights_quadratic, 0.0f, 1.0f);
+			ImGui::Text("Camera position: (%.1f, %.1f, %.1f)", main_camera.position.x, main_camera.position.y, main_camera.position.z);
 			ImGui::Checkbox("Wireframe mode", &wireframe_mode);
+			ImGui::Checkbox("Visualize Depth", &visualize_depth);
 			ImGui::TreePop();
 		}
 		ImGui::End();
@@ -292,7 +307,7 @@ void GoofyGL::ProcessInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	if (glfwGetKey(window, GLFW_KEY_COMMA) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS)
 		cursor_enabled = !cursor_enabled;
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)

@@ -26,6 +26,7 @@ public:
 	void SetFloat(const std::string& name, float value) const;
 	void SetMat4(const std::string& name, const glm::mat4& mat) const;
 	void SetVec3(const std::string& name, const glm::vec3& vec) const;
+	void SetUint64(const std::string& name, uint64_t value) const;
 };
 
 #endif

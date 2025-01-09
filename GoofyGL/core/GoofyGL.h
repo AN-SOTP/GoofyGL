@@ -77,6 +77,9 @@ private:
 	Shader grid_shader;
 
 	bool vertical_sync = true;
+
+	bool visualize_depth = false;
+	bool wireframe_mode = false;
 };
 
 #endif

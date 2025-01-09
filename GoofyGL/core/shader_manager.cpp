@@ -114,3 +114,9 @@ void Shader::SetVec3(const std::string& name, const glm::vec3& vec) const
 {
 	glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &vec[0]);
 }
+
+void Shader::SetUint64(const std::string& name, uint64_t value) const
+{
+	//GLint location = glGetUniformLocation(ID, name.c_str());
+	glUniformHandleui64ARB(glGetUniformLocation(ID, name.c_str()), value);
+}
