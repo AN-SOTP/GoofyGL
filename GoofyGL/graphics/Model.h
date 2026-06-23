@@ -140,7 +140,7 @@ private:
 			material_data.shininess = 32.0f;
 		}
 
-		std::cout << "Vertices: " << vertices.size() << ", Indices: " << indices.size() << std::endl;
+		//std::cout << "Vertices: " << vertices.size() << ", Indices: " << indices.size() << std::endl;
 
 		/*std::cout << "Vertices:" << std::endl;
 		for (size_t i = 0; i < vertices.size(); ++i) {
@@ -172,7 +172,7 @@ private:
 			if (cached != texture_cache.end())
 			{
 				textures.push_back(cached->second);
-				std::cout << "Using cached texture: " << full_path << std::endl;
+				//std::cout << "Using cached texture: " << full_path << std::endl;
 				continue;
 			}
 
@@ -184,7 +184,7 @@ private:
 			textures.push_back(texture);
 			texture_cache[full_path] = texture;
 
-			std::cout << "Loading new texture: " << full_path << std::endl;
+			//std::cout << "Loading new texture: " << full_path << std::endl;
 		}
 
 		//if no textures

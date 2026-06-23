@@ -133,5 +133,6 @@
     <None Include="assets\shaders\model_test_shader.fs" />
     <None Include="assets\shaders\grid_shader.fs" />
     <None Include="assets\shaders\grid_shader.vs" />
+    <None Include="assets\shaders\single_color.fs" />
   </ItemGroup>
 </Project>

@@ -45,24 +45,27 @@ public:
 
 	void Draw(Shader& shader)
 	{
-		unsigned int diffuseNumber = 1;
-		unsigned int specularNumber = 1;
+		//shader exposes a single sampler for each map type (material_diffuse / material_specular).
+		//bind the first texture of each type we find; any extras are ignored.
+		bool diffuse_bound = false;
+		bool specular_bound = false;
 		for (unsigned int i = 0; i < textures.size(); i++)
 		{
-			glActiveTexture(GL_TEXTURE0 + i); //get active texture unit before binding
-			//get texture number (diffuse_texterNUMBER)
-			std::string number;
-			std::string name = textures[i].type;
-			if (name == "texture_diffuse")
+			const std::string& name = textures[i].type;
+			if (name == "texture_diffuse" && !diffuse_bound)
 			{
-				number = std::to_string(diffuseNumber++);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, textures[i].id);
+				shader.SetInt("material_diffuse", 0);
+				diffuse_bound = true;
 			}
-			else if (name == "texture_specular")
+			else if (name == "texture_specular" && !specular_bound)
 			{
-				number = std::to_string(specularNumber++);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, textures[i].id);
+				shader.SetInt("material_specular", 1);
+				specular_bound = true;
 			}
-			shader.SetInt(("material." + name + number).c_str(), i);
-			glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		}
 		glActiveTexture(GL_TEXTURE0);
 

@@ -92,17 +92,17 @@ void main()
     if (texture_color.a < 0.5)
         discard;
 
-    // 1) directional lighting
+    //1: directional lighting
     vec3 result = CalculateDirectionalLight(directional_light, norm, view_dir);
     
-    // 2) point lighting
+    //2: point lighting
     for(int i = 0; i < NR_POINT_LIGHTS; i++)
         result += CalculatePointLight(point_lights[i], norm, frag_pos, view_dir);
     
-    // 3) spotlight
+    //3: spotlight
     result += CalculateSpotLight(spot_light, norm, frag_pos, view_dir);
 
-    // If wireframe is on, we force white lines
+    //If wireframe is on, we force white lines
     if(wireframe)
         frag_color = vec4(1.0);
     if(visualize_depth)
@@ -118,20 +118,19 @@ vec3 CalculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 view_di
 {
     vec3 light_dir = normalize(-light.direction);
 
-    // 1) DIFFUSE shading
+    //1: DIFFUSE shading
     float diff = max(dot(normal, light_dir), 0.0);
 
-    // 2) SPECULAR shading
+    //2: SPECULAR shading
     vec3 reflect_dir = reflect(-light_dir, normal);
     float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
-    // 3) Sample textures *and* multiply by color
+    //3: Sample textures *and* multiply by color
     vec3 base_diffuse  = texture(material_diffuse, tex_coords).rgb * material.diffuse_color;
     vec3 base_specular = texture(material_specular, tex_coords).rgb * material.specular_color;
     
-    // For ambient, many engines use the “diffuse texture” as well, 
-    // but you could also do:  light.ambient * material.ambient_color
-    // We'll stay consistent with your approach (using baseDiffuse).
+    //For ambient, many engines use the “diffuse texture” as well, 
+    //but could also do:  light.ambient * material.ambient_color
     vec3 ambient  = light.ambient  * base_diffuse;
     vec3 diffuse  = light.diffuse  * diff * base_diffuse;
     vec3 specular = light.specular * spec * base_specular;
@@ -141,23 +140,23 @@ vec3 CalculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 view_di
 
 vec3 CalculatePointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir)
 {
-    // 1) Light direction & basic diffuse/spec
+    //1: Light direction & basic diffuse/spec
     vec3 light_dir   = normalize(light.position - frag_pos);
     float diff       = max(dot(normal, light_dir), 0.0);
 
     vec3 reflect_dir = reflect(-light_dir, normal);
     float spec       = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
-    // 2) Combine texture + color
+    //2: Combine texture + color
     vec3 base_diffuse  = texture(material_diffuse, tex_coords).rgb * material.diffuse_color;
     vec3 base_specular = texture(material_specular, tex_coords).rgb * material.specular_color;
 
-    // 3) Basic ambient/diffuse/spec
+    //3: Basic ambient/diffuse/spec
     vec3 ambient  = light.ambient  * base_diffuse;
     vec3 diffuse  = light.diffuse  * diff * base_diffuse;
     vec3 specular = light.specular * spec * base_specular;
 
-    // 4) Attenuation
+    //4: Attenuation
     float distance    = length(light.position - frag_pos);
     float attenuation = 1.0 / (light.constant 
                                + light.linear * distance 
@@ -174,32 +173,32 @@ vec3 CalculateSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_d
 {
     vec3 light_dir = normalize(light.position - frag_pos);
 
-    // 1) Basic diffuse/spec
+    //1: Basic diffuse/spec
     float diff       = max(dot(normal, light_dir), 0.0);
     vec3 reflect_dir = reflect(-light_dir, normal);
     float spec       = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
 
-    // 2) Combine texture + color
+    //2: Combine texture + color
     vec3 base_diffuse  = texture(material_diffuse, tex_coords).rgb * material.diffuse_color;
     vec3 base_specular = texture(material_specular, tex_coords).rgb * material.specular_color;
 
-    // 3) Basic ambient/diffuse/spec
+    //3: Basic ambient/diffuse/spec
     vec3 ambient  = light.ambient  * base_diffuse;
     vec3 diffuse  = light.diffuse  * diff * base_diffuse;
     vec3 specular = light.specular * spec * base_specular;
 
-    // 4) Spotlight angle (soft edges)
+    //4: Spotlight angle (soft edges)
     float theta   = dot(light_dir, normalize(-light.direction));
     float epsilon = light.cutoff - light.outer_cutoff;
     float intensity = clamp((theta - light.outer_cutoff) / epsilon, 0.0, 1.0);
 
-    // 5) Attenuation
+    //5: Attenuation
     float distance    = length(light.position - frag_pos);
     float attenuation = 1.0 / (light.constant 
                                + light.linear * distance 
                                + light.quadratic * (distance * distance));
 
-    // 6) Combine spotlight intensity + attenuation
+    //6: Combine spotlight intensity + attenuation
     ambient  *= (attenuation * intensity);
     diffuse  *= (attenuation * intensity);
     specular *= (attenuation * intensity);

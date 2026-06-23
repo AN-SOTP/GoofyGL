@@ -119,17 +119,8 @@ void GoofyGL::GoofyGLRun()
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
 
-		//input
+		//input (also applies the cursor mode change when TAB toggles cursor_enabled)
 		ProcessInput(window);
-
-		if (cursor_enabled)
-		{
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		}
-		if (!cursor_enabled)
-		{
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		}
 
 		//rendering
 		glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
@@ -206,12 +197,10 @@ void GoofyGL::GoofyGLRun()
 		lighting_shader.SetFloat("spot_light.cutoff", glm::cos(glm::radians(12.5f)));
 		lighting_shader.SetFloat("spot_light.outer_cutoff", glm::cos(glm::radians(15.0f)));
 
-		//set values of material vectors in material struct
-		//lighting_shader.SetVec3("material.ambient", glm::vec3(1.0f, 0.5f, 0.31f));
-		//lighting_shader.SetVec3("material.diffuse", glm::vec3(1.0f, 0.5f, 0.31f));
-		lighting_shader.SetInt("material.diffuse", 0);
-		lighting_shader.SetInt("material.specular", 1);
-		lighting_shader.SetFloat("material.shininess", 32.0f);
+		//sampler bindings and per-mesh material values are set inside Mesh::Draw.
+		//(previously we set "material.diffuse"/"material.specular" here, but those names
+		//don't exist in the shader — the samplers are "material_diffuse"/"material_specular",
+		//and the struct field "material.diffuse" is the vec3 color, not a sampler.)
 
 		glm::mat4 projection = glm::perspective(glm::radians(main_camera.zoom), (float)screen_width / (float)screen_height, 0.1f, 1000.0f);
 		glm::mat4 view = main_camera.GetViewMatrix();
@@ -307,8 +296,19 @@ void GoofyGL::ProcessInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS)
+	//edge-detect TAB: only flip on the RELEASE -> PRESS transition, otherwise the toggle
+	//fires every frame the key is held and cursor_enabled flickers (visually it looks random
+	//whether the cursor ends up shown or hidden, depending on parity of frames during the tap).
+	bool tab_is_pressed = glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS;
+	if (tab_is_pressed && !tab_was_pressed)
+	{
 		cursor_enabled = !cursor_enabled;
+		glfwSetInputMode(window, GLFW_CURSOR, cursor_enabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+		//reset first_mouse so re-grabbing the cursor doesn't produce a giant jump on the next mouse event
+		if (!cursor_enabled)
+			first_mouse = true;
+	}
+	tab_was_pressed = tab_is_pressed;
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 		main_camera.ProcessKeyboard(FORWARD, delta_time);
@@ -398,9 +398,18 @@ unsigned int GoofyGL::LoadTexture(char const * path)
 void GoofyGL::InitPerformanceStats()
 {
 	#ifdef _WIN32
-	// convert string to a wide string
+	//PdhAddCounter requires a query handle created by PdhOpenQuery first;
+	//without it cpu_query is uninitialised and the counter add silently fails.
+	if (PdhOpenQuery(NULL, 0, &cpu_query) != ERROR_SUCCESS)
+	{
+		std::cerr << "PdhOpenQuery failed; CPU usage will not be available." << std::endl;
+		cpu_query = NULL;
+		return;
+	}
 	std::wstring cpu_counter_path = L"\\Processor(_Total)\\% processor time";
 	PdhAddCounter(cpu_query, cpu_counter_path.c_str(), NULL, &cpu_counter);
+	//first PdhCollectQueryData primes the counter; the first formatted read after this returns 0,
+	//so real values start arriving on the second collect (in UpdatePerformanceStats).
 	PdhCollectQueryData(cpu_query);
 	#endif
 }
@@ -427,10 +436,13 @@ void GoofyGL::UpdatePerformanceStats()
 
 		// Update CPU usage
 		#ifdef _WIN32
-		PDH_FMT_COUNTERVALUE counterVal;
-		PdhCollectQueryData(cpu_query);
-		PdhGetFormattedCounterValue(cpu_counter, PDH_FMT_DOUBLE, NULL, &counterVal);
-		cpu_usage = static_cast<float>(counterVal.doubleValue);
+		if (cpu_query)
+		{
+			PDH_FMT_COUNTERVALUE counterVal;
+			PdhCollectQueryData(cpu_query);
+			if (PdhGetFormattedCounterValue(cpu_counter, PDH_FMT_DOUBLE, NULL, &counterVal) == ERROR_SUCCESS)
+				cpu_usage = static_cast<float>(counterVal.doubleValue);
+		}
 		#endif
 	}
 }

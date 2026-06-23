@@ -43,6 +43,7 @@ public:
 	const unsigned int screen_height = 720;
 	Camera main_camera;
 	bool cursor_enabled = false;
+	bool tab_was_pressed = false; //edge-detect TAB so one tap = one toggle
 	bool first_mouse = true;
 	float last_x = screen_width / 2;
 	float last_y = screen_height / 2;
@@ -61,8 +62,8 @@ private:
 	//float gpu_usage = 0.0f;
 
 #ifdef _WIN32
-	PDH_HQUERY cpu_query;
-	PDH_HCOUNTER cpu_counter;
+	PDH_HQUERY cpu_query = NULL;
+	PDH_HCOUNTER cpu_counter = NULL;
 #endif
 
 	void InitPerformanceStats();
